@@ -126,35 +126,44 @@ async def _existing_result(s, user_id, show_id, idem_key, req_hash, codes):
 async def _precheck(user_id, show_id, meta, codes, req_hash, idem_key):
     """Lock-free fast path. Answers replays and obvious declines WITHOUT taking row locks or a transaction,
     so a stampede on a taken hot seat never queues behind row locks. It is an optimisation only: anything it lets
-    through is still decided atomically (locks + guarded UPDATE) in _reserve_tx. Order mirrors the tx:
-    idempotency -> per-user limit -> seat availability."""
+    through is still decided atomically (locks + guarded UPDATE) in _reserve_tx.
+    Each statement has its own snapshot, so a decline is only trusted after RE-CHECKING the idempotency key:
+    a retry whose first attempt committed between our statements would otherwise see its own seat as 'taken'."""
     n = len(codes)
+    limit = meta["per_user_limit"]
     async with db_gate, SessionLocal() as s:
         found = await _existing_result(s, user_id, show_id, idem_key, req_hash, codes)
         if found:
             return found
+        decline: Decline | None = None
         held = (
             await s.execute(
                 text("SELECT seats_held FROM user_show_quota WHERE user_id = :u AND show_id = :s"),
                 {"u": user_id, "s": show_id},
             )
         ).scalar()
-        limit = meta["per_user_limit"]
         if n > limit or (held or 0) + n > limit:
-            raise Decline("per-user-limit", f"At most {limit} seats per user for this show", details={"limit": limit})
-        rows = (
-            await s.execute(
-                text("SELECT seat_code, state FROM seats WHERE show_id = :s AND seat_code = ANY(:codes)"),
-                {"s": show_id, "codes": codes},
-            )
-        ).all()
-        if len(rows) != n:
-            known = {r[0] for r in rows}
-            raise Decline("invalid-seats", "Unknown seat(s) for this show", status=400,
-                          details={"unknown": [c for c in codes if c not in known]})
-        taken = [r[0] for r in rows if r[1] != "available"]
-        if taken:
-            raise Decline("seat-taken", "One or more requested seats are already taken", details={"taken": taken})
+            decline = Decline("per-user-limit", f"At most {limit} seats per user for this show", details={"limit": limit})
+        else:
+            rows = (
+                await s.execute(
+                    text("SELECT seat_code, state FROM seats WHERE show_id = :s AND seat_code = ANY(:codes)"),
+                    {"s": show_id, "codes": codes},
+                )
+            ).all()
+            if len(rows) != n:
+                known = {r[0] for r in rows}
+                decline = Decline("invalid-seats", "Unknown seat(s) for this show", status=400,
+                                  details={"unknown": [c for c in codes if c not in known]})
+            else:
+                taken = [r[0] for r in rows if r[1] != "available"]
+                if taken:
+                    decline = Decline("seat-taken", "One or more requested seats are already taken", details={"taken": taken})
+        if decline is not None:
+            found = await _existing_result(s, user_id, show_id, idem_key, req_hash, codes)  # re-check (see docstring)
+            if found:
+                return found
+            raise decline
     return None
 
 
