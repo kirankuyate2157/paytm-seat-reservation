@@ -1,0 +1,38 @@
+# git clone && docker compose up --build  ->  http://localhost:8000/health/ready
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: seats
+      POSTGRES_PASSWORD: seats
+      POSTGRES_DB: seats
+    command: ["postgres", "-c", "max_connections=200"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seats -d seats"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    # internal only: not published to the host
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seats:seats@db:5432/seats
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-dev-secret-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+      SEED_DEMO: "true"
+      DB_POOL_SIZE: "20"
+      DB_MAX_OVERFLOW: "10"
+      DB_CONCURRENCY: "40"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
