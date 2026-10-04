@@ -47,4 +47,5 @@ Logs are JSON on stdout with `correlation_id` (also returned as `X-Request-ID`):
 DB_POOL_TIMEOUT, DB_CONCURRENCY, DEFAULT_PER_USER_LIMIT, LOG_LEVEL, SEED_DEMO` (see `.env.example`).
 # paytm-seat-reservation
 check http://localhost:8000/docs  openAPI docs of fastapi for testing 
+I thought i will add Ui as well but since it was load and scaling related so not added react frontend for now skipped..
 <img width="1920" height="15736" alt="image" src="https://github.com/user-attachments/assets/09051ff2-8369-443b-86ef-eeaa294939c4" />
