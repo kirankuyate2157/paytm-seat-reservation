@@ -4,6 +4,23 @@ FastAPI + PostgreSQL (SQLAlchemy 2 async/asyncpg, Alembic). Correct under stampe
 idempotent retries, token-derived identity, zero 5xx on domain outcomes. See `WRITEUP.md` for the design and
 `CHECKPOINT.md` for build status / TODO.
 
+## Live deployment
+- Service: https://paytm-seat-reservation-xxch.onrender.com
+- API docs: /docs  |  Health: /health/live, /health/ready  |  Metrics: /metrics
+- Admin (for POST /shows): `admin@example.com` / `Paytm-Seats-2026`
+- Users: `POST /auth/signup` then use the `access_token` as a Bearer token
+
+## Run the burst against the live service
+    pip install httpx
+    ./burst.sh https://paytm-seat-reservation-xxch.onrender.com
+    # knobs: USERS TOTAL SEATS HOT_REQUESTS CONCURRENCY ADMIN_EMAIL ADMIN_PASSWORD
+
+### Latest burst result (live)
+<paste the output here: outcome distribution, reconciliation, RESULT line>
+
+### Logs
+<link to screen recording of live logs during the burst>
+
 ## Run (fresh clone)
 ```
 docker compose up --build        # migrations -> seed -> API on :8000
