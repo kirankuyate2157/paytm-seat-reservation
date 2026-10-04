@@ -32,6 +32,12 @@ class Settings(BaseSettings):
         for prefix in ("postgres://", "postgresql://"):
             if v.startswith(prefix):
                 return "postgresql+asyncpg://" + v[len(prefix):]
+        if not v.startswith("postgresql+asyncpg://"):
+            scheme = v.split("://", 1)[0] if "://" in v else "(no scheme)"
+            raise ValueError(
+                f"DATABASE_URL must be a PostgreSQL URL starting with postgresql:// or postgres:// (got scheme '{scheme}'). "
+                "On Render use the Internal Database URL from the Postgres service's Connections tab."
+            )
         return v
 
     @model_validator(mode="after")
