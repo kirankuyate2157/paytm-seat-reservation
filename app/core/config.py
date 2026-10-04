@@ -1,3 +1,4 @@
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     seed_demo: bool = True
     cookie_secure: bool = False
-    
+
     @field_validator("database_url")
     @classmethod
     def _async_driver(cls, v: str) -> str:
@@ -32,6 +33,19 @@ class Settings(BaseSettings):
             if v.startswith(prefix):
                 return "postgresql+asyncpg://" + v[len(prefix):]
         return v
+
+    @model_validator(mode="after")
+    def _refuse_weak_secrets_in_prod(self):
+        """Fail fast at startup if a production-like environment still uses development defaults."""
+        if self.app_env.lower() in ("prod", "production", "staging"):
+            problems = []
+            if self.jwt_secret.startswith("dev-secret") or len(self.jwt_secret) < 32:
+                problems.append("JWT_SECRET must be set to a random value of at least 32 characters")
+            if self.admin_password == "admin12345" or len(self.admin_password) < 8:
+                problems.append("ADMIN_PASSWORD must be set (at least 8 characters, not the default)")
+            if problems:
+                raise ValueError("; ".join(problems))
+        return self
 
 
 settings = Settings()
