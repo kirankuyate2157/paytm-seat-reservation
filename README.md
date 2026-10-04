@@ -45,3 +45,4 @@ Logs are JSON on stdout with `correlation_id` (also returned as `X-Request-ID`):
 ## Config (env)
 `DATABASE_URL, JWT_SECRET, ACCESS_TOKEN_TTL_SECONDS, ADMIN_EMAIL, ADMIN_PASSWORD, DB_POOL_SIZE, DB_MAX_OVERFLOW,
 DB_POOL_TIMEOUT, DB_CONCURRENCY, DEFAULT_PER_USER_LIMIT, LOG_LEVEL, SEED_DEMO` (see `.env.example`).
+# paytm-seat-reservation
