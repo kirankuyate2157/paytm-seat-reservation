@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     seed_demo: bool = True
     cookie_secure: bool = False
+    
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, v: str) -> str:
+        """Hosts (Render, Railway, Heroku) hand out postgres:// or postgresql:// URLs; we need the asyncpg driver."""
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+asyncpg://" + v[len(prefix):]
+        return v
 
 
 settings = Settings()
